@@ -223,6 +223,14 @@ public class Convert {
                 .hasArg()
                 .desc("Output frame rate")
                 .build());
+
+        // Output analysis report file
+        this.options.addOption(Option.builder("a")
+                .required(false)
+                .longOpt("analysis-report-file")
+                .hasArg()
+                .desc("Analysis report for input file")
+                .build());
     }
 
     public Convert() {
@@ -344,7 +352,7 @@ public class Convert {
         }
     }
 
-    private SubtitleParser buildParser(String filePath, String charset) throws IOException {
+    public SubtitleParser buildParser(String filePath, String charset) throws IOException {
         String ext = this.getFileExtension(filePath);
 
         // Get subtitle parser class
@@ -412,8 +420,17 @@ public class Convert {
         return ext;
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws ParseException {
         Convert convert = new Convert();
+        // Analysis mode
+        CommandLineParser parser = new DefaultParser();
+        CommandLine line = parser.parse(convert.options, args);
+        if (line.hasOption("a")) {
+            String reportFile = line.getOptionValue("a");
+            String fileAnalyzed = line.getOptionValue("i");
+            Analyze analyze = new Analyze();
+            analyze.run(fileAnalyzed, reportFile);
+        }
         convert.run(args);
     }
 }
