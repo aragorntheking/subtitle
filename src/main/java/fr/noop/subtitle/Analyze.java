@@ -20,6 +20,15 @@ public class Analyze {
     public Analyze() {
     }
 
+    private String formatTimecode(SubtitleObject inputSubtitle, SubtitleTimeCode timeCode) {
+        if (inputSubtitle.hasProperty(Property.FRAME_RATE)) {
+            float frameRate = (float) inputSubtitle.getProperty(Property.FRAME_RATE);
+            return timeCode.formatWithFramerate(frameRate);
+        } else {
+            return timeCode.toString();
+        }
+    }
+
     public void run(String filePath, String outputFilePath) {
         // Build parser for input file
         SubtitleParser subtitleParser = null;
@@ -62,9 +71,9 @@ public class Analyze {
             obj.put("frame_rate", (float) inputSubtitle.getProperty(Property.FRAME_RATE));
         }
         if (inputSubtitle.hasProperty(Property.START_TIMECODE_PRE_ROLL)) {
-            obj.put("start_timecode", (SubtitleTimeCode) inputSubtitle.getProperty(Property.START_TIMECODE_PRE_ROLL));
+            obj.put("start_timecode", formatTimecode(inputSubtitle, (SubtitleTimeCode) inputSubtitle.getProperty(Property.START_TIMECODE_PRE_ROLL)));
         }
-        obj.put("first_cue", (SubtitleTimeCode) inputSubtitle.getCues().get(0).getStartTime());
+        obj.put("first_cue", formatTimecode(inputSubtitle, (SubtitleTimeCode) inputSubtitle.getCues().get(0).getStartTime()));
 
         // Write output file
         try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(outputFilePath))){
