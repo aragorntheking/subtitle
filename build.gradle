@@ -2,6 +2,7 @@ plugins {
     id 'java-library'
 	id 'maven-publish'
 }
+compileJava {options.encoding = "UTF-8"}
 
 group 'com.aragorntheking'
 version '1.0-SNAPSHOT'
@@ -14,7 +15,6 @@ dependencies {
 	 "commons-io:commons-io:2.8.0",
 	 "javax.xml.bind:jaxb-api:2.3.0")
 	testImplementation group: 'junit', name: 'junit', version: '4.12'
-
 }
 
 publishing {
@@ -26,6 +26,11 @@ publishing {
 				username = System.getenv("GITHUB_ACTOR")
 				password = System.getenv("GITHUB_TOKEN")
 			}
+		}
+	}
+	publications {
+		gpr(MavenPublication) {
+			from(components.java)
 		}
 	}
 }
