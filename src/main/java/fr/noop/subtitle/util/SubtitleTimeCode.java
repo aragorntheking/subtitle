@@ -67,6 +67,12 @@ public class SubtitleTimeCode implements Comparable<SubtitleTimeCode> {
         return String.format("%01d:%02d:%02d.%02d", this.hour, this.minute, this.second, this.millisecond / 10);
     }
 
+    public String formatWithFramerate(float frameRate) {
+        float frameDuration = (1000 / frameRate);
+        int frames = Math.round(this.millisecond / frameDuration);
+        return String.format("%02d:%02d:%02d:%02d", this.hour, this.minute, this.second, frames);
+    }
+
     public static SubtitleTimeCode fromStringWithFrames(String timeCodeString, float frameRate) throws IOException {
         int hour = Integer.parseInt(timeCodeString.substring(0, 2));
         int minute = Integer.parseInt(timeCodeString.substring(3, 5));
@@ -157,6 +163,10 @@ public class SubtitleTimeCode implements Comparable<SubtitleTimeCode> {
         return new SubtitleTimeCode(this.getTime() - toSubtract.getTime());
     }
 
+    public SubtitleTimeCode addOffset(SubtitleTimeCode toAdd) {
+        return new SubtitleTimeCode(this.getTime() + toAdd.getTime());
+    }
+
     public SubtitleTimeCode convertFromStart(SubtitleTimeCode newStartTimecode, SubtitleTimeCode originalStartTimecode) {
         long newStartTC = newStartTimecode.getTime();
         long origStartTC = originalStartTimecode.getTime();
@@ -165,8 +175,45 @@ public class SubtitleTimeCode implements Comparable<SubtitleTimeCode> {
         return new SubtitleTimeCode(newTC);
     }
 
-    public SubtitleTimeCode convertWithFrameRate(float originalFrameRate, String newFrameRate) throws IOException {
-        long newTime = (long) ((float) this.getTime() * originalFrameRate / FrameRate.getEnum(newFrameRate).getFrameRate());
-        return new SubtitleTimeCode(newTime);
+    public SubtitleTimeCode convertWithFrameRate(float originalFrameRate, float newFrameRate, SubtitleTimeCode startTimecode) throws IOException {
+        if (needConforming(originalFrameRate, newFrameRate)) {
+            SubtitleTimeCode init = this.subtract(startTimecode);
+            long newTime = (long) ((float) init.getTime() * originalFrameRate / newFrameRate);
+            return new SubtitleTimeCode(newTime).addOffset(startTimecode);
+        } else {
+            return this;
+        }
+    }
+
+    private boolean needConforming(float originalFrameRate, float newFrameRate) {
+        if (originalFrameRate != newFrameRate) {
+            return Math.round(Math.abs(originalFrameRate - newFrameRate)) <= 1;
+        } else {
+            return false;
+        }
+    }
+
+    public SubtitleTimeCode convertWithOptions(
+        SubtitleTimeCode inputStartTC,
+        String outputStartTC,
+        float inputFrameRate,
+        String outputFrameRate,
+        String outputOffset
+    ) throws IOException {
+        SubtitleTimeCode converted = this;
+        float outFrameRateFloat = inputFrameRate;
+        if (outputFrameRate != null) {
+            outFrameRateFloat = FrameRate.getEnum(outputFrameRate).getFrameRate();
+            converted = converted.convertWithFrameRate(inputFrameRate, outFrameRateFloat, inputStartTC);
+        }
+        if (outputOffset != null) {
+            SubtitleTimeCode offsetTimecode = SubtitleTimeCode.fromStringWithFrames(outputOffset, outFrameRateFloat);
+            converted = converted.addOffset(offsetTimecode);
+        }
+        if (outputStartTC != null) {
+            SubtitleTimeCode outputTC = SubtitleTimeCode.fromStringWithFrames(outputStartTC, outFrameRateFloat);
+            converted = converted.convertFromStart(outputTC, inputStartTC);
+        }
+        return converted;
     }
 }

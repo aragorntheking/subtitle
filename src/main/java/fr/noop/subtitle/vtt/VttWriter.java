@@ -10,21 +10,22 @@
 
 package fr.noop.subtitle.vtt;
 
-import fr.noop.subtitle.base.BaseSubtitleObject;
 import fr.noop.subtitle.model.SubtitleCue;
 import fr.noop.subtitle.model.SubtitleLine;
 import fr.noop.subtitle.model.SubtitleObject;
 import fr.noop.subtitle.model.SubtitleRegionCue;
 import fr.noop.subtitle.model.SubtitleStyled;
 import fr.noop.subtitle.model.SubtitleText;
-import fr.noop.subtitle.model.SubtitleWriter;
-import fr.noop.subtitle.util.SubtitleRegion;
+import fr.noop.subtitle.model.SubtitleWriterWithFrameRate;
+import fr.noop.subtitle.model.SubtitleWriterWithOffset;
+import fr.noop.subtitle.model.SubtitleWriterWithTimecode;
+
+import fr.noop.subtitle.model.SubtitleWriterWithHeader;
 import fr.noop.subtitle.util.SubtitleStyle;
 import fr.noop.subtitle.util.SubtitleTimeCode;
 import fr.noop.subtitle.util.SubtitleRegion.VerticalAlign;
 import fr.noop.subtitle.util.SubtitleStyle.FontStyle;
 
-import java.awt.SystemColor;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
@@ -32,8 +33,12 @@ import java.io.UnsupportedEncodingException;
 /**
  * Created by clebeaupin on 11/10/15.
  */
-public class VttWriter implements SubtitleWriter {
+public class VttWriter implements SubtitleWriterWithHeader, SubtitleWriterWithTimecode, SubtitleWriterWithFrameRate, SubtitleWriterWithOffset {
     private String charset; // Charset used to encode file
+    private String outputTimecode;
+    private String outputFrameRate;
+    private String outputOffset;
+    private String headerText; // header to append.
 
     public VttWriter(String charset) {
         this.charset = charset;
@@ -42,9 +47,21 @@ public class VttWriter implements SubtitleWriter {
     @Override
     public void write(SubtitleObject subtitleObject, OutputStream os) throws IOException {
         try {
-            // Write header
-            os.write(new String("WEBVTT\n\n").getBytes(this.charset));
+            SubtitleTimeCode startTimeCode = new SubtitleTimeCode(0);
+            float frameRate = 25;
+            if (subtitleObject.hasProperty(SubtitleObject.Property.START_TIMECODE_PRE_ROLL)){
+                startTimeCode = (SubtitleTimeCode) subtitleObject.getProperty(SubtitleObject.Property.START_TIMECODE_PRE_ROLL);
+            }
+            if (subtitleObject.hasProperty(SubtitleObject.Property.FRAME_RATE)) {
+                frameRate = (float) subtitleObject.getProperty(SubtitleObject.Property.FRAME_RATE);
+            }
 
+            // Write header
+            os.write(("WEBVTT\n").getBytes(this.charset));
+            if (headerText != null){
+                os.write(headerText.getBytes(this.charset));
+            }
+            os.write("\n".getBytes(this.charset));
             // Write cues
             for (SubtitleCue cue : subtitleObject.getCues()) {
                 if (cue.getId() != null) {
@@ -52,23 +69,15 @@ public class VttWriter implements SubtitleWriter {
                     String number = String.format("%s\n", cue.getId());
                     os.write(number.getBytes(this.charset));
                 }
-                
-                // Write Start time and end time
-                String startToEnd = null;
-                if (subtitleObject.hasProperty(SubtitleObject.Property.START_TIMECODE_PRE_ROLL)){
-                    SubtitleTimeCode startTimeCode = (SubtitleTimeCode) subtitleObject.getProperty(SubtitleObject.Property.START_TIMECODE_PRE_ROLL);
-                    startToEnd = String.format("%s --> %s %s\n",
-                        this.formatTimeCode(cue.getStartTime().subtract(startTimeCode)),
-                        this.formatTimeCode(cue.getEndTime().subtract(startTimeCode)),
-                        this.verticalPosition(cue));
-                } else {
-                    startToEnd = String.format("%s --> %s %s\n",
-                        this.formatTimeCode(cue.getStartTime()),
-                        this.formatTimeCode(cue.getEndTime()),
-                        this.verticalPosition(cue));
-                }                
 
+                // Write Start time and end time
+                SubtitleTimeCode startTC = cue.getStartTime().convertWithOptions(startTimeCode, outputTimecode, frameRate, outputFrameRate, outputOffset);
+                SubtitleTimeCode endTC = cue.getEndTime().convertWithOptions(startTimeCode, outputTimecode, frameRate, outputFrameRate, outputOffset);
+
+                String vp = this.verticalPosition(cue);
+                String startToEnd = this.formatTimeCode(startTC) + " --> " + this.formatTimeCode(endTC) + (vp != "" ? " " : "") + vp + "\n";
                 os.write(startToEnd.getBytes(this.charset));
+
                 // Write text
                 //String text = String.format("%s\n", cue.getText());
 
@@ -106,9 +115,10 @@ public class VttWriter implements SubtitleWriter {
 
     private String verticalPosition(SubtitleCue cue) {
         if (cue instanceof SubtitleRegionCue) {
-            VerticalAlign va =  ((SubtitleRegionCue) cue).getRegion().getVerticalAlign();
+            VerticalAlign va = ((SubtitleRegionCue) cue).getRegion().getVerticalAlign();
             if (va == VerticalAlign.TOP) {
-                return "line:0";
+                // there is a bug in Shaka 4.X when aligned to top using "line:0"
+                return "line:0.01%";
             }
             else {
                 return "";
@@ -122,5 +132,26 @@ public class VttWriter implements SubtitleWriter {
                 timeCode.getMinute(),
                 timeCode.getSecond(),
                 timeCode.getMillisecond());
+    }
+
+    @Override
+    public void setTimecode(String timecode) {
+        this.outputTimecode= timecode;
+    }
+
+    @Override
+    public void setFrameRate(String frameRate) {
+        this.outputFrameRate = frameRate;
+    }
+
+    @Override
+    public void setOffset(String offset) {
+        this.outputOffset = offset;
+    }
+
+    @Override
+    public void setHeaderText(String headerText) {
+        this.headerText = headerText;
+        
     }
 }

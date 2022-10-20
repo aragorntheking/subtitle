@@ -117,8 +117,8 @@ public class StlGsi {
     public enum Dsc {
         UNDEFINED(0x20),
         OPEN_SUBTITLING(0x30),
-        DSC_TELETEXT_LEVEL_1(0x31),
-        DSC_TELETEXT_LEVEL_2(0x32);
+        TELETEXT_LEVEL_1(0x31),
+        TELETEXT_LEVEL_2(0x32);
 
         private int value;
 
@@ -133,6 +133,12 @@ public class StlGsi {
         public static Dsc getEnum(int value) {
             for(Dsc v : values())
                 if(v.getValue() == value) return v;
+            throw new IllegalArgumentException();
+        }
+
+        public static Dsc getEnumFromName(String name) {
+            for(Dsc v : values())
+                if(v.name().equalsIgnoreCase(name)) return v;
             throw new IllegalArgumentException();
         }
     }

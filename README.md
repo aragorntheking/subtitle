@@ -8,6 +8,7 @@ fr.noop.subtitle provides parsers and writers for different subtitle formats:
 - sami (smi)
 - stl ebu
 - ttml
+- ass
 
 
 VTT
@@ -158,14 +159,33 @@ where pom.xml is (Note: Maven must already be installed):
 
     mvn package
 
-This will create the executable jar under target/subtitle-.*.jar
+This will create the executable jar under target/subtitle-*-jar-with-dependencies.jar
 
 Convert from command line
 -------------------------
 
 Usage:
 
-    java -jar subtitle-*.jar -i input-file -o output-file
+    java -jar subtitle-*-jar-with-dependencies.jar -i input-file -o output-file
+
+To see more options, run :
+
+    java -jar subtitle-*-jar-with-dependencies.jar -h
+
+Analyse from command line
+-------------------------
+
+Parse file and report if present :
+
+- frame rate (numerator and denominator)
+- start timecode
+- first cue timecode
+
+Usage :
+
+    java -cp subtitle-*-jar-with-dependencies.jar fr.noop.subtitle.Analyse -i input-file -o analysis_report.json
+
+This will save the report to `analysis_report.json`
 
 Update lib
 ----------

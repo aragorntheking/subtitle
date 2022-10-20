@@ -102,20 +102,8 @@ public class AssWriter implements SubtitleWriterWithHeader, SubtitleWriterWithFr
         for (SubtitleCue cue : subtitleObject.getCues()) {
             String cueText = "";
 
-            SubtitleTimeCode startTC = cue.getStartTime();
-            if (outputTimecode != null) {
-                SubtitleTimeCode outputTC = SubtitleTimeCode.fromStringWithFrames(outputTimecode, frameRate);
-                startTC = cue.getStartTime().convertFromStart(outputTC, startTimecode);
-            }
-            SubtitleTimeCode endTC = cue.getEndTime();
-            if (outputTimecode != null) {
-                SubtitleTimeCode outputTC = SubtitleTimeCode.fromStringWithFrames(outputTimecode, frameRate);
-                endTC = cue.getEndTime().convertFromStart(outputTC, startTimecode);
-            }
-            if (newFrameRate != null) {
-                startTC = startTC.convertWithFrameRate(frameRate, newFrameRate);
-                endTC = endTC.convertWithFrameRate(frameRate, newFrameRate);
-            }
+            SubtitleTimeCode startTC = cue.getStartTime().convertWithOptions(startTimecode, outputTimecode, frameRate, newFrameRate, null);
+            SubtitleTimeCode endTC = cue.getEndTime().convertWithOptions(startTimecode, outputTimecode, frameRate, newFrameRate, null);
 
             String styleName = "Nomalab_Default";
             int vp = 0;
@@ -166,18 +154,16 @@ public class AssWriter implements SubtitleWriterWithHeader, SubtitleWriterWithFr
     private String addStyle(SubtitleCue cue, String headerText) {
         String styled = "";
         if (headerText == null) {
+            int posX = 1920 / 2;
+            int posY = 1020; //default vertical position
             if (cue instanceof SubtitleRegionCue) {
                 SubtitleRegion region = ((SubtitleRegionCue) cue).getRegion();
-                int posX = 1920 / 2;
-                // FIXME : use Math.round(1080 * region.getHeight() / 100) and recalculate height region in StlObject
-                int posY = 1080 - Math.round(region.getHeight());
                 if (region.getVerticalAlign() == VerticalAlign.TOP) {
-                    int lines = cue.getLines().size();
-                    posY = Math.round(1080 * region.getHeight() / 100) + 52 * lines;
+                    posY = 160;
                 }
-                String position = String.format("{\\pos(%d,%d)}", posX, posY);
-                styled += position;
             }
+            String position = String.format("{\\pos(%d,%d)}", posX, posY);
+            styled += position;
         }
         int lineIndex = 0;
             for (SubtitleLine line : cue.getLines()) {
